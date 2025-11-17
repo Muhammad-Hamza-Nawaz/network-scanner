@@ -18,10 +18,11 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+      - name: Install minimal test dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          # install only the packages required by the unit tests to avoid heavy system deps
+          pip install pytest pydantic
       - name: Run tests
         run: |
           pytest -q
