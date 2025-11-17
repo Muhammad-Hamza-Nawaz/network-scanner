@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Network Scanner & Firewall Visualizer</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      .row { display:flex; gap:20px; }
+      .card { border:1px solid #ddd; padding:12px; border-radius:6px; flex:1 }
+      table { width:100%; border-collapse: collapse; }
+      th,td { border:1px solid #eee; padding:6px; text-align:left }
+      .flow { height:120px; display:flex; align-items:center; justify-content:space-around }
+      .box { padding:10px 14px; border-radius:6px; border:1px solid #bbb }
+      .allow { background:#e8f9e8; }
+      .deny { background:#f9e8e8; }
+    </style>
+  </head>
+  <body>
+    <h2>Network Scanner & Firewall Visualizer</h2>
+    <div class="row">
+      <div class="card">
+        <h3>Scanner</h3>
+        <label>Target IP / Hostname: <input id="target" value="127.0.0.1" /></label>
+        <label>Scan type:
+          <select id="scanType">
+            <option value="tcp">TCP (connect)</option>
+            <option value="udp">UDP (best-effort)</option>
+          </select>
+        </label>
+        <label>Ports: <input id="ports" value="22,80,443" /></label>
+        <button id="startScan">Start Scan</button>
+        <h4>Results</h4>
+        <table id="resultsTable">
+          <thead><tr><th>IP</th><th>Port</th><th>Service</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Firewall Rules</h3>
+        <form id="ruleForm">
+          <label>Action:
+            <select id="action"><option value="allow">Allow</option><option value="deny">Deny</option></select>
+          </label>
+          <label>Src IP: <input id="src" placeholder="e.g. 192.168.1.5 or blank" /></label>
+          <label>Dst IP: <input id="dst" placeholder="e.g. 127.0.0.1 or blank" /></label>
+          <label>Port: <input id="rport" placeholder="e.g. 80" /></label>
+          <label>Protocol: <input id="proto" placeholder="tcp/udp" /></label>
+          <label>Priority: <input id="priority" value="100" /></label>
+          <button type="submit">Add Rule</button>
+        </form>
+        <div style="margin-top:8px">
+          <label>Default action:
+            <select id="defaultAction"><option value="allow">Allow</option><option value="deny">Deny</option></select>
+          </label>
+          <button id="clearRules">Clear Rules</button>
+        </div>
+        <h4>Rules</h4>
+        <label>Search: <input id="ruleSearch" placeholder="search rules" /></label>
+        <ul id="rulesList"></ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>Traffic Flow Visualizer</h3>
+      <div class="flow">
+        <div class="box">Client</div>
+        <div id="flowAllow" class="box allow">Allowed: <span id="allowCount">0</span></div>
+        <div id="flowDeny" class="box deny">Blocked: <span id="denyCount">0</span></div>
+        <div class="box">Server</div>
+      </div>
+
+      <h4>Evaluate sample packet</h4>
+      <label>Src IP: <input id="p_src" value="192.168.1.100" /></label>
+      <label>Dst IP: <input id="p_dst" value="127.0.0.1" /></label>
+      <label>Port: <input id="p_port" value="80" /></label>
+      <label>Proto: <input id="p_proto" value="tcp" /></label>
+      <button id="evalPacket">Evaluate</button>
+      <div id="evalResult"></div>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
