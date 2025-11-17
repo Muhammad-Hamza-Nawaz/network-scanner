@@ -38,57 +38,78 @@ async function addRule(e){
 async function refreshRules(){
   const res = await fetch(`${apiBase}/rules`)
   const j = await res.json()
-  const ul = document.getElementById('rulesList')
-  ul.innerHTML = ''
+  const tbody = document.querySelector('#rulesTable tbody')
+  tbody.innerHTML = ''
   let allow=0, deny=0
   j.rules.forEach(r => {
-    const li = document.createElement('li')
-    const txt = document.createElement('span')
-    txt.textContent = `${r.priority}: ${r.action.toUpperCase()} src=${r.src_ip||'*'} dst=${r.dst_ip||'*'} port=${r.port||'*'} proto=${r.protocol||'*'}`
-    li.appendChild(txt)
+    const tr = document.createElement('tr')
+    tr.innerHTML = `
+      <td>${r.id||''}</td>
+      <td>${r.priority||''}</td>
+      <td>${r.action||''}</td>
+      <td>${r.src_ip||'*'}</td>
+      <td>${r.dst_ip||'*'}</td>
+      <td>${r.port||'*'}</td>
+      <td>${r.protocol||'*'}</td>
+      <td></td>
+    `
+    const ops = tr.querySelector('td:last-child')
     const edit = document.createElement('button')
     edit.textContent = 'Edit'
-    edit.style.marginLeft = '8px'
-    edit.addEventListener('click', () => startEdit(li, r))
-    li.appendChild(edit)
+    edit.className = 'ghost'
+    edit.addEventListener('click', () => openEditModal(r))
     const del = document.createElement('button')
     del.textContent = 'Delete'
     del.style.marginLeft = '8px'
     del.addEventListener('click', () => deleteRule(r.id))
-    li.appendChild(del)
-    ul.appendChild(li)
+    ops.appendChild(edit)
+    ops.appendChild(del)
+    tbody.appendChild(tr)
   })
-  // update counts by evaluating a few sample packets? We'll just keep counts zero until evals
   document.getElementById('allowCount').textContent = allow
   document.getElementById('denyCount').textContent = deny
 }
 
-function startEdit(li, r){
-  li.innerHTML = ''
-  // create small form
-  const aSel = document.createElement('select')
-  ['allow','deny'].forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; if(r.action===v) o.selected=true; aSel.appendChild(o) })
-  const src = document.createElement('input'); src.value = r.src_ip||''; src.placeholder='src'
-  const dst = document.createElement('input'); dst.value = r.dst_ip||''; dst.placeholder='dst'
-  const port = document.createElement('input'); port.value = r.port||''; port.placeholder='port'; port.style.width='60px'
-  const proto = document.createElement('input'); proto.value = r.protocol||''; proto.placeholder='proto'; proto.style.width='60px'
-  const pr = document.createElement('input'); pr.value = r.priority||100; pr.placeholder='priority'; pr.style.width='60px'
-  const save = document.createElement('button'); save.textContent='Save'
-  const cancel = document.createElement('button'); cancel.textContent='Cancel'
-  li.appendChild(aSel); li.appendChild(src); li.appendChild(dst); li.appendChild(port); li.appendChild(proto); li.appendChild(pr); li.appendChild(save); li.appendChild(cancel)
-  save.addEventListener('click', async ()=>{
-    const payload = { action: aSel.value, src_ip: src.value||undefined, dst_ip: dst.value||undefined, port: port.value?parseInt(port.value):undefined, protocol: proto.value||undefined, priority: pr.value?parseInt(pr.value):undefined }
-    await fetch(`${apiBase}/rules/${r.id}`, { method: 'PUT', headers:{'content-type':'application/json'}, body: JSON.stringify(payload) })
-    await refreshRules()
-  })
-  cancel.addEventListener('click', ()=> refreshRules())
+// Modal editing
+let _editingId = null
+function openEditModal(r){
+  _editingId = r.id
+  document.getElementById('m_action').value = r.action || 'allow'
+  document.getElementById('m_src').value = r.src_ip || ''
+  document.getElementById('m_dst').value = r.dst_ip || ''
+  document.getElementById('m_port').value = r.port || ''
+  document.getElementById('m_proto').value = r.protocol || ''
+  document.getElementById('m_prio').value = r.priority || 100
+  document.getElementById('editModal').classList.add('show')
 }
 
+function closeEditModal(){
+  _editingId = null
+  document.getElementById('editModal').classList.remove('show')
+}
+
+document.getElementById('m_cancel').addEventListener('click', ()=> closeEditModal())
+document.getElementById('m_save').addEventListener('click', async ()=>{
+  if(!_editingId) return closeEditModal()
+  const payload = {
+    action: document.getElementById('m_action').value,
+    src_ip: document.getElementById('m_src').value || undefined,
+    dst_ip: document.getElementById('m_dst').value || undefined,
+    port: document.getElementById('m_port').value ? parseInt(document.getElementById('m_port').value) : undefined,
+    protocol: document.getElementById('m_proto').value || undefined,
+    priority: document.getElementById('m_prio').value ? parseInt(document.getElementById('m_prio').value) : undefined
+  }
+  await fetch(`${apiBase}/rules/${_editingId}`, { method: 'PUT', headers:{'content-type':'application/json'}, body: JSON.stringify(payload) })
+  closeEditModal()
+  await refreshRules()
+})
+
 // search/filter
+// search/filter (works on table rows)
 document.getElementById('ruleSearch').addEventListener('input', (e)=>{
   const q = e.target.value.toLowerCase()
-  document.querySelectorAll('#rulesList li').forEach(li=>{
-    li.style.display = li.textContent.toLowerCase().includes(q)?'block':'none'
+  document.querySelectorAll('#rulesTable tbody tr').forEach(tr=>{
+    tr.style.display = tr.textContent.toLowerCase().includes(q)?'table-row':'none'
   })
 })
 

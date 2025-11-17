@@ -5,19 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Network Scanner & Firewall Visualizer</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 20px; }
-      .row { display:flex; gap:20px; }
-      .card { border:1px solid #ddd; padding:12px; border-radius:6px; flex:1 }
-      table { width:100%; border-collapse: collapse; }
-      th,td { border:1px solid #eee; padding:6px; text-align:left }
+      :root{ --bg:#f6f8fb; --card:#ffffff; --muted:#6b7280; --accent:#2563eb }
+      body { font-family: Inter, system-ui, Arial, sans-serif; margin: 20px; background:var(--bg); color:#0f172a }
+      .container{ max-width:1100px; margin:0 auto }
+      header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px }
+      h2{ margin:0 }
+      .row { display:flex; gap:18px; flex-wrap:wrap }
+      .card { background:var(--card); box-shadow:0 1px 3px rgba(15,23,42,0.06); border-radius:10px; padding:16px; flex:1 }
+      .card.small{ flex:0 0 360px }
+      label{ display:block; margin:8px 0; font-size:13px; color:var(--muted) }
+      input, select, button{ font-size:14px; padding:8px 10px; border-radius:6px; border:1px solid #e6ecf2 }
+      button{ background:var(--accent); color:white; border:none; cursor:pointer }
+      button.ghost{ background:transparent; color:var(--accent); border:1px solid #e6ecf2 }
+      table { width:100%; border-collapse: collapse; margin-top:10px }
+      th,td { padding:10px 8px; text-align:left; border-bottom:1px solid #f1f5f9; font-size:14px }
+      th { color:var(--muted); font-weight:600; font-size:12px }
       .flow { height:120px; display:flex; align-items:center; justify-content:space-around }
-      .box { padding:10px 14px; border-radius:6px; border:1px solid #bbb }
-      .allow { background:#e8f9e8; }
-      .deny { background:#f9e8e8; }
+      .box { padding:10px 14px; border-radius:8px; border:1px solid #e6ecf2 }
+      .allow { background:#ecfdf5; }
+      .deny { background:#fff1f2; }
+      .controls{ display:flex; gap:8px; align-items:center; margin-top:8px }
+      .search{ width:220px }
+      /* modal */
+      .modal{ position:fixed; left:0; top:0; right:0; bottom:0; display:none; align-items:center; justify-content:center; background:rgba(2,6,23,0.5) }
+      .modal.show{ display:flex }
+      .modal .dialog{ background:var(--card); padding:18px; border-radius:10px; width:420px }
+      .actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:12px }
+      @media(max-width:900px){ .row{ flex-direction:column } .card.small{ flex:1 } }
     </style>
   </head>
   <body>
-    <h2>Network Scanner & Firewall Visualizer</h2>
+    <div class="container">
+      <header>
+        <h2>Network Scanner & Firewall Visualizer</h2>
+        <div style="font-size:13px;color:var(--muted)">Local prototype — open <strong>127.0.0.1:8000</strong></div>
+      </header>
     <div class="row">
       <div class="card">
         <h3>Scanner</h3>
@@ -29,7 +51,7 @@
           </select>
         </label>
         <label>Ports: <input id="ports" value="22,80,443" /></label>
-        <button id="startScan">Start Scan</button>
+        <div class="controls"><button id="startScan">Start Scan</button></div>
         <h4>Results</h4>
         <table id="resultsTable">
           <thead><tr><th>IP</th><th>Port</th><th>Service</th><th>Status</th></tr></thead>
@@ -37,7 +59,7 @@
         </table>
       </div>
 
-      <div class="card">
+      <div class="card small">
         <h3>Firewall Rules</h3>
         <form id="ruleForm">
           <label>Action:
@@ -48,38 +70,64 @@
           <label>Port: <input id="rport" placeholder="e.g. 80" /></label>
           <label>Protocol: <input id="proto" placeholder="tcp/udp" /></label>
           <label>Priority: <input id="priority" value="100" /></label>
-          <button type="submit">Add Rule</button>
+          <div class="controls"><button type="submit">Add Rule</button><button id="clearRules" class="ghost">Clear Rules</button></div>
         </form>
-        <div style="margin-top:8px">
-          <label>Default action:
+        <div style="margin-top:10px; display:flex; gap:8px; align-items:center">
+          <input id="ruleSearch" class="search" placeholder="Search rules" />
+          <label style="font-size:13px;color:var(--muted)">Default:
             <select id="defaultAction"><option value="allow">Allow</option><option value="deny">Deny</option></select>
           </label>
-          <button id="clearRules">Clear Rules</button>
         </div>
-        <h4>Rules</h4>
-        <label>Search: <input id="ruleSearch" placeholder="search rules" /></label>
-        <ul id="rulesList"></ul>
+        <h4 style="margin-top:12px">Rules</h4>
+        <table id="rulesTable">
+          <thead><tr><th>ID</th><th>Prio</th><th>Action</th><th>Src</th><th>Dst</th><th>Port</th><th>Proto</th><th>Ops</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
 
-    <div class="card" style="margin-top:16px">
-      <h3>Traffic Flow Visualizer</h3>
-      <div class="flow">
-        <div class="box">Client</div>
-        <div id="flowAllow" class="box allow">Allowed: <span id="allowCount">0</span></div>
-        <div id="flowDeny" class="box deny">Blocked: <span id="denyCount">0</span></div>
-        <div class="box">Server</div>
+      <div class="card" style="margin-top:16px; width:100%">
+        <h3>Traffic Flow Visualizer</h3>
+        <div class="flow">
+          <div class="box">Client</div>
+          <div id="flowAllow" class="box allow">Allowed: <span id="allowCount">0</span></div>
+          <div id="flowDeny" class="box deny">Blocked: <span id="denyCount">0</span></div>
+          <div class="box">Server</div>
+        </div>
+
+        <h4>Evaluate sample packet</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <label>Src IP: <input id="p_src" value="192.168.1.100" /></label>
+          <label>Dst IP: <input id="p_dst" value="127.0.0.1" /></label>
+          <label>Port: <input id="p_port" value="80" /></label>
+          <label>Proto: <input id="p_proto" value="tcp" /></label>
+          <button id="evalPacket">Evaluate</button>
+        </div>
+        <div id="evalResult" style="margin-top:8px"></div>
       </div>
 
-      <h4>Evaluate sample packet</h4>
-      <label>Src IP: <input id="p_src" value="192.168.1.100" /></label>
-      <label>Dst IP: <input id="p_dst" value="127.0.0.1" /></label>
-      <label>Port: <input id="p_port" value="80" /></label>
-      <label>Proto: <input id="p_proto" value="tcp" /></label>
-      <button id="evalPacket">Evaluate</button>
-      <div id="evalResult"></div>
+    </div>
+
+    <!-- Edit modal -->
+    <div id="editModal" class="modal">
+      <div class="dialog">
+        <h3>Edit Rule</h3>
+        <div>
+          <label>Action: <select id="m_action"><option value="allow">Allow</option><option value="deny">Deny</option></select></label>
+          <label>Src: <input id="m_src" /></label>
+          <label>Dst: <input id="m_dst" /></label>
+          <label>Port: <input id="m_port" /></label>
+          <label>Proto: <input id="m_proto" /></label>
+          <label>Priority: <input id="m_prio" /></label>
+        </div>
+        <div class="actions">
+          <button id="m_cancel" class="ghost">Cancel</button>
+          <button id="m_save">Save</button>
+        </div>
+      </div>
     </div>
 
     <script src="/static/app.js"></script>
+    </div>
   </body>
 </html>
